@@ -4,8 +4,11 @@
 #include <memory>
 #include <type_traits>
 
+namespace lock_free
+{
+
 template <typename T>
-class LockFreeStack
+class Stack
 {
   struct Node final
   {
@@ -16,9 +19,9 @@ class LockFreeStack
   };
 
  public:
-  LockFreeStack() = default;
-  LockFreeStack(const LockFreeStack&) = delete;
-  LockFreeStack& operator=(const LockFreeStack&) = delete;
+  Stack() = default;
+  Stack(const Stack&) = delete;
+  Stack& operator=(const Stack&) = delete;
 
   void push(T data)
   {
@@ -47,7 +50,7 @@ class LockFreeStack
     return data;
   }
 
-  ~LockFreeStack()
+  ~Stack()
   {
     deleteNodes(head_);
     deleteNodes(nodes_to_delete_);
@@ -127,3 +130,5 @@ class LockFreeStack
 
   std::atomic_size_t threads_in_pop_{};
 };
+
+}
