@@ -70,7 +70,7 @@ class Stack
   {
     if (threads_in_pop_.fetch_add(0, std::memory_order_relaxed) == 1)
     {
-      auto nodes_to_delete = head_.exchange(nullptr, std::memory_order_acquire);
+      auto nodes_to_delete = nodes_to_delete_.exchange(nullptr, std::memory_order_acquire);
       if (nodes_to_delete)
       {
         if (!threads_in_pop_.fetch_add(0, std::memory_order_relaxed))
@@ -98,7 +98,7 @@ class Stack
 
   void addPoppedRange(Node* const first, Node* const last) noexcept
   {
-    last->next = nodes_to_delete_.load(std::memory_order_seq_cst);
+    last->next = nodes_to_delete_.load(std::memory_order_relaxed);
 
     for (; !nodes_to_delete_.compare_exchange_weak(last->next, first, 
 			                           std::memory_order_release, 
