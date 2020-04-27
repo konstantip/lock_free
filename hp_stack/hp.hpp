@@ -88,6 +88,7 @@ void addToReclaimList(const T* const data) noexcept
 
 inline void reclaimIfPossible() noexcept
 {
+  getHazardPointerForCurrentThread().exchange(nullptr, std::memory_order_relaxed);
   detail::reclaim_list.reclaimIfPossible();
 }
 

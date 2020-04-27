@@ -25,7 +25,8 @@ class HPOwner final
     for (int i = 0; i < max_nuf_of_threads; ++i)
     {
       std::thread::id id{};
-      if (pointers[i].thread_id.compare_exchange_strong(id, std::this_thread::get_id()))
+      if (pointers[i].thread_id.compare_exchange_strong(id, std::this_thread::get_id(), 
+                                                        std::memory_order_relaxed))
       {
         index = i;
         return;
@@ -36,8 +37,8 @@ class HPOwner final
 
   ~HPOwner()
   {
-    pointers[index].pointer.exchange(nullptr);
-    pointers[index].thread_id.exchange(std::thread::id{});
+    pointers[index].pointer.exchange(nullptr, std::memory_order_relaxed);
+    pointers[index].thread_id.exchange(std::thread::id{}, std::memory_order_relaxed);
   }
 
   std::atomic<void*>& getPointer() const noexcept
@@ -72,14 +73,16 @@ using ReclaimList = detail::ReclaimList;
 
 void ReclaimList::addNode(Node* const node) noexcept
 {
-  node->next = head_.load();
+  node->next = head_.load(std::memory_order_relaxed);
 
-  while (!head_.compare_exchange_weak(node->next, node));
+  while (!head_.compare_exchange_weak(node->next, node, 
+                                      std::memory_order_release, 
+                                      std::memory_order_relaxed));
 }
 
 void ReclaimList::reclaimIfPossible() noexcept
 {
-  Node* old_head = head_.exchange(nullptr);
+  Node* old_head = head_.exchange(nullptr, std::memory_order_acquire);
 
   for (; old_head;)
   {
