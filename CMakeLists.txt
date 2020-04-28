@@ -43,3 +43,13 @@ foreach(TEST IN LISTS ${TEST_LIST})
   target_include_directories(${NAME} PRIVATE ${SUBDIR})
   target_link_libraries(${NAME} PRIVATE ${${TEST}_LINK})
 endforeach()
+
+set(NAME_PREFIX COUNTED_NODE_STACK)
+set(SUBDIR counted_node_stack)
+foreach(TEST IN LISTS ${TEST_LIST})
+  set(NAME ${NAME_PREFIX}_${TEST})
+
+  add_executable(${NAME} ${${TEST}})
+  target_include_directories(${NAME} PRIVATE ${SUBDIR})
+  target_link_libraries(${NAME} PRIVATE ${${TEST}_LINK} atomic)
+endforeach()
