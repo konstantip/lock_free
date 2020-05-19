@@ -5,10 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_options(-O3 -W -Wall -pedantic)
 
-set(TEST_NAME one_pop_one_push)
-set(${TEST_NAME} tests/only_pop_thread_only_push_thread.cpp)
-set(${TEST_NAME}_link pthread)
-list(APPEND TEST_LIST ${TEST_NAME}) 
+enable_testing()
+
 
 list(APPEND SUBDIR_TO_EXCLUDE .git build tests)
 
@@ -22,6 +20,13 @@ macro(SUBDIRLIST result curdir)
   endforeach()
   set(${result} ${dirlist})
 endmacro()
+
+
+set(TEST_NAME one_pop_one_push)
+set(${TEST_NAME} tests/only_pop_thread_only_push_thread.cpp)
+set(${TEST_NAME}_link pthread)
+list(APPEND TEST_LIST ${TEST_NAME}) 
+
 
 SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_LIST_DIR})
 foreach(subdir ${SUBDIRS})
@@ -42,6 +47,8 @@ foreach(subdir ${SUBDIRS})
     add_executable(${NAME} ${${T}})
     target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
     target_include_directories(${NAME} PRIVATE ${subdir})
+
+    add_test(NAME ${NAME} COMMAND ./${NAME})
   endforeach()
 endforeach()
 
