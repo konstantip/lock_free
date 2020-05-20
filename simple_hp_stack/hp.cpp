@@ -94,7 +94,7 @@ void ReclaimList::reclaimIfPossible() noexcept
     }
     else
     {
-      add(old_head);
+      addNode(old_head);
     }
 
     old_head = next;

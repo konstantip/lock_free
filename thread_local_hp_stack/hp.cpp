@@ -69,9 +69,9 @@ bool otherHazardPoints(const void* const p) noexcept
   return false;
 }
 
-using ReclaimList = detail::ReclaimList;
+using ThreadSafeReclaimList = detail::ThreadSafeReclaimList;
 
-void ReclaimList::addNode(Node* const node) noexcept
+void ThreadSafeReclaimList::addNode(Node* const node) noexcept
 {
   node->next = head_.load(std::memory_order_relaxed);
 
@@ -80,7 +80,23 @@ void ReclaimList::addNode(Node* const node) noexcept
                                       std::memory_order_relaxed));
 }
 
-void ReclaimList::reclaimIfPossible() noexcept
+void ThreadSafeReclaimList::addNodes(Node* const head) noexcept
+{
+  if (!head)
+  {
+    return;
+  }
+
+  Node* tail{head};
+  for (Node* next = head->next; next; tail = next, next = next->next);
+
+  tail->next = head_.load(std::memory_order_relaxed);
+  while (!head_.compare_exchange_weak(tail->next, head,
+                                      std::memory_order_release,
+                                      std::memory_order_relaxed));
+}
+
+void ThreadSafeReclaimList::reclaimIfPossible() noexcept
 {
   Node* old_head = head_.exchange(nullptr, std::memory_order_acquire);
 
@@ -101,7 +117,12 @@ void ReclaimList::reclaimIfPossible() noexcept
   }
 }
 
-ReclaimList::~ReclaimList()
+detail::Node* ThreadSafeReclaimList::exchange() noexcept
+{
+  return head_.exchange(nullptr, std::memory_order_acquire);
+}
+
+ThreadSafeReclaimList::~ThreadSafeReclaimList()
 {
   for (Node* old_head = head_.load(); old_head;)
   {
@@ -109,6 +130,72 @@ ReclaimList::~ReclaimList()
     delete old_head;
     old_head = next;
   }
+}
+
+using ReclaimList = detail::ReclaimList;
+
+void ReclaimList::addNode(Node* const node) noexcept
+{
+  ++size_;
+  node->next = head_;
+  head_ = node;
+}
+
+std::size_t ReclaimList::size() const noexcept
+{
+  return size_;
+}
+
+void ReclaimList::acceptFromGlobal() noexcept
+{
+  auto global_list = global_reclaim_list.exchange();
+
+  if (!global_list)
+  {
+    return;
+  }
+
+  std::size_t delta_len{};
+  const auto global_head = global_list;
+  for (auto next = global_list->next; next; global_list = next, next = next->next, ++delta_len);
+
+  global_list->next = head_;
+  head_ = global_head;
+  size_ += delta_len;
+}
+
+void ReclaimList::reclaimIfPossible() noexcept
+{
+  Node* old_head = head_;
+  head_ = nullptr;
+
+  acceptFromGlobal();
+
+  if (size() < max_nuf_of_threads)
+  {
+    return;
+  }
+
+  for (; old_head;)
+  {
+    Node* next = old_head->next;
+
+    if (!otherHazardPoints(old_head))
+    {
+      delete old_head;
+    }
+    else
+    {
+      addNode(old_head);
+    }
+
+    old_head = next;
+  }
+}
+
+ReclaimList::~ReclaimList()
+{
+  global_reclaim_list.addNodes(head_);
 }
 
 }

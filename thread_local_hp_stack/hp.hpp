@@ -15,38 +15,35 @@ class NoFreeHazardPointer : public std::exception
 
 namespace detail
 {
-
-class ReclaimList final
+class Node final
 {
-  struct Node final
+ private:
+  template <typename T>
+  static void deleteHelper(const void* const data)
   {
-   private:
-    template <typename T>
-    static void deleteHelper(const void* const data)
-    {
-      delete static_cast<const T*>(data);
-    }
+    delete static_cast<const T*>(data);
+  }
 
-    std::function<void(const void*)> deleter;
-    const void* const data;
+  std::function<void(const void*)> deleter;
+  const void* const data;
 
-   public:
-    Node* next{};
+ public:
+  Node* next{};
 
-    template <typename T>
-    Node(const T* const data) noexcept : deleter{&deleteHelper<T>}, data{data} {}
+  template <typename T>
+  Node(const T* const data) noexcept : deleter{&deleteHelper<T>}, data{data} {}
 
-    ~Node()
-    {
-      deleter(data);
-    }
-  };
+  ~Node()
+  {
+    deleter(data);
+  }
+};
 
+class ThreadSafeReclaimList final
+{
   std::atomic<Node*> head_{};
 
-  void addNode(Node* const node) noexcept;
- public:
-  
+ public:  
   template <typename T>
   void add(const T* const data)
   {
@@ -54,12 +51,42 @@ class ReclaimList final
     addNode(new_node);
   }
 
+  void addNode(Node* const node) noexcept;
+
+  void addNodes(Node* const head) noexcept;
+
+  void reclaimIfPossible() noexcept;
+
+  Node* exchange() noexcept;
+
+  ~ThreadSafeReclaimList();
+};
+
+class ReclaimList final
+{
+  Node* head_{};
+  std::size_t size_{};
+
+  std::size_t size() const noexcept;
+
+  void acceptFromGlobal() noexcept;
+ public:
+  template <typename T>
+  void add(const T* const data)
+  {
+    Node* new_node = new Node{data};
+    addNode(new_node);
+  }
+
+  void addNode(Node* const node) noexcept;
+
   void reclaimIfPossible() noexcept;
 
   ~ReclaimList();
 };
 
-inline ReclaimList reclaim_list{};
+inline ThreadSafeReclaimList global_reclaim_list{};
+inline thread_local ReclaimList thread_reclaim_list{};
 
 }
 
@@ -75,7 +102,7 @@ void addToReclaimList(const T* const data) noexcept
   {
     try
     {
-      detail::reclaim_list.add(data);
+      detail::thread_reclaim_list.add(data);
       break;
     }
     catch (const std::bad_alloc&)
@@ -92,7 +119,7 @@ void addToReclaimList(const T* const data) noexcept
 inline void reclaimIfPossible() noexcept
 {
   getHazardPointerForCurrentThread().exchange(nullptr, std::memory_order_relaxed);
-  detail::reclaim_list.reclaimIfPossible();
+  detail::thread_reclaim_list.reclaimIfPossible();
 }
 
 }

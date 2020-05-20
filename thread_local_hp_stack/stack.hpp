@@ -62,15 +62,7 @@ class Stack
 
     std::unique_ptr data = std::move(old_head->data);
 
-    if (!hazard_pointers::otherHazardPoints(old_head))
-    {
-      delete old_head;
-    }
-    else
-    {
-      hazard_pointers::addToReclaimList(old_head);
-    }
-    
+    hazard_pointers::addToReclaimList(old_head);
     hazard_pointers::reclaimIfPossible();
 
     return data;
