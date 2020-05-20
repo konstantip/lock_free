@@ -20,6 +20,7 @@ class ReclaimList final
 {
   struct Node final
   {
+   private:
     template <typename T>
     static void deleteHelper(const void* const data)
     {
@@ -28,10 +29,12 @@ class ReclaimList final
 
     std::function<void(const void*)> deleter;
     const void* const data;
+
+   public:
     Node* next{};
 
     template <typename T>
-    Node(const T* const data) : deleter{&deleteHelper<T>}, data{data} {}
+    Node(const T* const data) noexcept : deleter{&deleteHelper<T>}, data{data} {}
 
     ~Node()
     {
