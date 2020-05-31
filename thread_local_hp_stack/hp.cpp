@@ -60,7 +60,7 @@ bool otherHazardPoints(const void* const p) noexcept
 {
   for (int i = 0; i < max_nuf_of_threads; ++i)
   {
-    if (p == pointers[i].pointer.fetch_add(std::memory_order_relaxed))
+    if (p == pointers[i].pointer.load())
     {
       return true;
     }
