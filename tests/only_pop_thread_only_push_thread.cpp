@@ -55,6 +55,11 @@ void popMulty(lock_free::Stack<int>& stack, const bool verbose)
 int main(const int argc, const char* const argv[])
 {
   const bool verbose = argc > 1 && argv[1] == std::string_view{"--verbose"};
+
+  if (verbose)
+  {
+    std::cout << "Verbose mode.\n";
+  }
   lock_free::Stack<int> st;
 
   std::thread pop{&popMulty, std::ref(st), verbose};

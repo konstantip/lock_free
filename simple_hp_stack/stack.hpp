@@ -24,9 +24,14 @@ class Stack
 
  public:
 
-  void push(T data)
+  void push(T&& data)
   {
     pushReadyData(std::make_unique<T>(std::move(data)));
+  }
+
+  void push(const T& data)
+  {
+    pushReadyData(std::make_unique<T>(data));
   }
 
   void pushReadyData(std::unique_ptr<T> data)
