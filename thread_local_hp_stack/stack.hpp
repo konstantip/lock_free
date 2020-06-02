@@ -38,7 +38,7 @@ class Stack
   {
     std::atomic<void*>& hp = hazard_pointers::getHazardPointerForCurrentThread();
 
-    Node* old_head = head_.fetch_add(0, std::memory_order_relaxed);
+    Node* old_head = head_.load();
 
     do
     {
@@ -47,7 +47,7 @@ class Stack
       {
         temp = old_head;
         hp.exchange(old_head, std::memory_order_relaxed);
-        old_head = head_.fetch_add(0, std::memory_order_release); 
+        old_head = head_.load(); 
       }
       while (temp != old_head);  //It might be ub, but ok for us
     } 
