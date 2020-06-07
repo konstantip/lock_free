@@ -9,7 +9,7 @@ namespace lock_free
 template <typename T>
 class Stack
 {
-  struct Node
+  struct Node final
   {
     std::shared_ptr<Node> next;
     std::unique_ptr<T> data;
@@ -29,7 +29,12 @@ class Stack
   }
 
  public:
-  void push(T data)
+  void push(T&& data)
+  {
+    pushReadyData(std::make_unique<T>(std::move(data)));
+  }
+
+  void push(const T& data)
   {
     pushReadyData(std::make_unique<T>(std::move(data)));
   }
@@ -53,6 +58,11 @@ class Stack
     }
 
     return std::move(old_head->data);
+  }
+
+  bool isLockFree() const noexcept
+  {
+    return std::atomic_is_lock_free(&head_);
   }
 };
 
