@@ -72,6 +72,11 @@ class Stack
     return data;
   }
 
+  bool is_lock_free() const noexcept
+  {
+    return false;
+  }
+
   ~Stack()
   {
     while (head_)

@@ -99,6 +99,21 @@ class Stack
     }
   }
 
+  bool is_lock_free() const noexcept
+  {
+    return head_.is_lock_free();
+  }
+
+  ~Stack()
+  {
+    for (auto head_node_ptr = head_.load(std::memory_order_acquire).node; head_node_ptr;)
+    {
+      const auto next = head_node_ptr->next;
+      delete head_node_ptr;
+      head_node_ptr = next.node;
+    }
+  }
+
  private:
   void pushNode(NodePtr node_ptr) noexcept
   {

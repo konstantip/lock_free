@@ -81,6 +81,21 @@ class Stack
     return data;
   }
 
+  bool is_lock_free() const noexcept
+  {
+    return head_.is_lock_free();
+  }
+
+  ~Stack()
+  {
+    for (auto ptr = head_.load(std::memory_order_acquire); ptr;)
+    {
+      const auto next = ptr->next;
+      delete ptr;
+      ptr = next;
+    }
+  }
+
  private:
 
   void pushNode(Node* const node) noexcept

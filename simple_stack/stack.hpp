@@ -56,6 +56,11 @@ class Stack
     deleteNodes(nodes_to_delete_);
   }
 
+  bool is_lock_free() const noexcept
+  {
+    return head_.is_lock_free();
+  }
+
  private:
   void pushNode(Node* const node) noexcept
   {

@@ -25,13 +25,20 @@ endmacro()
 set(TEST_NAME one_pop_one_push)
 set(${TEST_NAME} tests/only_pop_thread_only_push_thread.cpp)
 set(${TEST_NAME}_link pthread)
-list(APPEND TEST_LIST ${TEST_NAME}) 
+list(APPEND TEST_LIST ${TEST_NAME})
+
+set(TEST_NAME is_lock_free_on_current_platform)
+set(${TEST_NAME} tests/is_lock_free_on_current_platform.cpp)
+set(${TEST_NAME}_skip_test 1)
+list(APPEND TEST_LIST ${TEST_NAME})
 
 
 SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_LIST_DIR})
 foreach(subdir ${SUBDIRS})
   message(STATUS "Subdirectory: ${subdir}")
   set(LIBS_TO_LINK "")
+
+  set(SKIP_TESTS 0)
   if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/${subdir}/CMakeLists.txt")
     message(STATUS "Cmake exists")
     add_subdirectory(${subdir})
@@ -48,7 +55,9 @@ foreach(subdir ${SUBDIRS})
     target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
     target_include_directories(${NAME} PRIVATE ${subdir})
 
-    add_test(NAME ${NAME} COMMAND ./${NAME})
+    if (NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
+      add_test(NAME ${NAME} COMMAND ./${NAME})
+    endif()
   endforeach()
 endforeach()
 

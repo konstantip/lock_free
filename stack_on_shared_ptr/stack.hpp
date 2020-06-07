@@ -60,7 +60,7 @@ class Stack
     return std::move(old_head->data);
   }
 
-  bool isLockFree() const noexcept
+  bool is_lock_free() const noexcept
   {
     return std::atomic_is_lock_free(&head_);
   }
