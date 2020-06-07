@@ -36,8 +36,13 @@ set(${TEST_NAME}_skip_test 1)
 list(APPEND TEST_LIST ${TEST_NAME})
 
 
+set(TEST_EXECUTABLES_DEPS_LIST "")
+
+
 macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
   message(STATUS "Start to create tests for ${subdir_with_tests}.")
+
+  set(LOCAL_TEST_EXECUTABLES_DEPS_LIST ${TEST_EXECUTABLES_DEPS_LIST})
 
   SUBDIRSLIST(SUBDIRS ${subdir_with_tests})
 
@@ -64,10 +69,13 @@ macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
       target_include_directories(${NAME} PRIVATE ${subdir})
 
       if (NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
-        add_test(NAME ${NAME} COMMAND ./${NAME})
+        add_test(NAME test_${NAME} COMMAND ./${NAME})
+	list(APPEND LOCAL_TEST_EXECUTABLES_DEPS_LIST ${NAME})
       endif()
     endforeach()
   endforeach()
+
+  set(TEST_EXECUTABLES_DEPS_LIST ${LOCAL_TEST_EXECUTABLES_DEPS_LIST} PARENT_SCOPE)
 endmacro()
 
 macro(CREATE_TESTS_TO_CURRENT_SUBDIRS)
@@ -81,3 +89,7 @@ foreach(subdir ${SUBDIRS})
     add_subdirectory(${subdir})
   endif()
 endforeach()
+
+add_custom_target(run_tests COMMAND ${CMAKE_CTEST_COMMAND})
+
+add_dependencies(run_tests ${TEST_EXECUTABLES_DEPS_LIST})
