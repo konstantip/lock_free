@@ -10,7 +10,7 @@ enable_testing()
 
 list(APPEND SUBDIR_TO_EXCLUDE .git build tests)
 
-macro(SUBDIRLIST result curdir)
+macro(SUBDIRSLIST result curdir)
   file(GLOB children RELATIVE ${curdir} ${curdir}/*)
   set(dirlist "")
   foreach(child ${children})
@@ -22,42 +22,62 @@ macro(SUBDIRLIST result curdir)
 endmacro()
 
 
+set(TESTS_DIR ${CMAKE_CURRENT_LIST_DIR}/tests)
+
+
 set(TEST_NAME one_pop_one_push)
-set(${TEST_NAME} tests/only_pop_thread_only_push_thread.cpp)
+set(${TEST_NAME} ${TESTS_DIR}/only_pop_thread_only_push_thread.cpp)
 set(${TEST_NAME}_link pthread)
 list(APPEND TEST_LIST ${TEST_NAME})
 
 set(TEST_NAME is_lock_free_on_current_platform)
-set(${TEST_NAME} tests/is_lock_free_on_current_platform.cpp)
+set(${TEST_NAME} ${TESTS_DIR}/is_lock_free_on_current_platform.cpp)
 set(${TEST_NAME}_skip_test 1)
 list(APPEND TEST_LIST ${TEST_NAME})
 
 
-SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_LIST_DIR})
-foreach(subdir ${SUBDIRS})
-  message(STATUS "Subdirectory: ${subdir}")
-  set(LIBS_TO_LINK "")
+macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
+  message(STATUS "Start to create tests for ${subdir_with_tests}.")
 
-  set(SKIP_TESTS 0)
+  SUBDIRSLIST(SUBDIRS ${subdir_with_tests})
+
+  message(STATUS "Subdir list: ${SUBDIRS}.")
+  foreach(subdir ${SUBDIRS})
+    message(STATUS "Subdirectory: ${subdir}")
+    set(LIBS_TO_LINK "")
+
+    set(SKIP_TESTS 0)
+    if(EXISTS "${subdir_with_tests}/${subdir}/CMakeLists.txt")
+      message(STATUS "Cmake exists")
+      add_subdirectory(${subdir})
+    endif()
+
+    if(LIBS_TO_LINK)
+      message(STATUS "Target ${subdir} will be linked with: ${LIBS_TO_LINK}")
+    endif()
+
+    foreach(T ${TEST_LIST})
+      set(NAME ${subdir}_${T})
+
+      add_executable(${NAME} ${${T}})
+      target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
+      target_include_directories(${NAME} PRIVATE ${subdir})
+
+      if (NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
+        add_test(NAME ${NAME} COMMAND ./${NAME})
+      endif()
+    endforeach()
+  endforeach()
+endmacro()
+
+macro(CREATE_TESTS_TO_CURRENT_SUBDIRS)
+  CREATE_TESTS_TO_SUBDIRS(${CMAKE_CURRENT_LIST_DIR})
+endmacro()
+
+SUBDIRSLIST(SUBDIRS ${CMAKE_CURRENT_LIST_DIR})
+foreach(subdir ${SUBDIRS})
   if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/${subdir}/CMakeLists.txt")
-    message(STATUS "Cmake exists")
+    message(STATUS "Cmake exists in ${subdir}. It is being processed.")
     add_subdirectory(${subdir})
   endif()
-
-  if(LIBS_TO_LINK)
-    message(STATUS "Target ${subdir} will be linked with: ${LIBS_TO_LINK}")
-  endif()
-
-  foreach(T ${TEST_LIST})
-    set(NAME ${subdir}_${T})
-
-    add_executable(${NAME} ${${T}})
-    target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
-    target_include_directories(${NAME} PRIVATE ${subdir})
-
-    if (NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
-      add_test(NAME ${NAME} COMMAND ./${NAME})
-    endif()
-  endforeach()
 endforeach()
-
