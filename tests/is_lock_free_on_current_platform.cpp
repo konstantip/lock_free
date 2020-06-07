@@ -22,15 +22,24 @@ int main(int argc, char* argv[])
 
   if (verbose)
   {
-    if (is_lock_free)
-    {
-      std::cout << "Container is lock-free on current platform! :)" << std::endl;
+    auto name = strrchr(argv[0], '/');
+    if (!name)
+    {	    
+      name = argv[0];
     }
     else
     {
-      std::cout << "Container is not lock-free on current platform :(" <<std::endl;
+      ++name;
+    }
+    if (is_lock_free)
+    {
+      std::cout << name << ": Container is lock-free on current platform! :)" << std::endl;
+    }
+    else
+    {
+      std::cout << name << ": Container is not lock-free on current platform :(" <<std::endl;
     }
   }
 
-  return !is_lock_free;
+  return 0;
 }

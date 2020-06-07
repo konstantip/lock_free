@@ -7,19 +7,9 @@ add_compile_options(-O3 -W -Wall -pedantic)
 
 enable_testing()
 
+include(utils.cmake)
 
 list(APPEND SUBDIR_TO_EXCLUDE .git build tests)
-
-macro(SUBDIRSLIST result curdir)
-  file(GLOB children RELATIVE ${curdir} ${curdir}/*)
-  set(dirlist "")
-  foreach(child ${children})
-    if(IS_DIRECTORY ${curdir}/${child} AND NOT child IN_LIST SUBDIR_TO_EXCLUDE)
-      list(APPEND dirlist ${child})
-    endif()
-  endforeach()
-  set(${result} ${dirlist})
-endmacro()
 
 
 set(TESTS_DIR ${CMAKE_CURRENT_LIST_DIR}/tests)
@@ -33,16 +23,25 @@ list(APPEND TEST_LIST ${TEST_NAME})
 set(TEST_NAME is_lock_free_on_current_platform)
 set(${TEST_NAME} ${TESTS_DIR}/is_lock_free_on_current_platform.cpp)
 set(${TEST_NAME}_skip_test 1)
+set(${TEST_NAME}_handler HANDLE_IS_LOCK_FREE)
 list(APPEND TEST_LIST ${TEST_NAME})
 
 
-set(TEST_EXECUTABLES_DEPS_LIST "")
+set(IS_LOCK_FREE_LIST "")
 
+macro(HANDLE_IS_LOCK_FREE target_name)
+	add_custom_target(check_${target_name} COMMAND ${target_name} --verbose >> ${CMAKE_BINARY_DIR}/is_log_free.log)
+  list(APPEND LOCAL_LOCKFREE_CHECKERS_LIST check_${target_name})
+endmacro()
+
+
+set(TEST_EXECUTABLES_DEPS_LIST "")
 
 macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
   message(STATUS "Start to create tests for ${subdir_with_tests}.")
 
   set(LOCAL_TEST_EXECUTABLES_DEPS_LIST ${TEST_EXECUTABLES_DEPS_LIST})
+  set(LOCAL_LOCKFREE_CHECKERS_LIST ${IS_LOCK_FREE_LIST})
 
   SUBDIRSLIST(SUBDIRS ${subdir_with_tests})
 
@@ -68,13 +67,19 @@ macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
       target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
       target_include_directories(${NAME} PRIVATE ${subdir})
 
-      if (NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
+      if(NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
         add_test(NAME test_${NAME} COMMAND ./${NAME})
 	list(APPEND LOCAL_TEST_EXECUTABLES_DEPS_LIST ${NAME})
+      endif()
+
+      if(DEFINED ${T}_handler)
+        invoke(${T}_handler ${NAME})
       endif()
     endforeach()
   endforeach()
 
+
+  set(IS_LOCK_FREE_LIST ${LOCAL_LOCKFREE_CHECKERS_LIST} PARENT_SCOPE)
   set(TEST_EXECUTABLES_DEPS_LIST ${LOCAL_TEST_EXECUTABLES_DEPS_LIST} PARENT_SCOPE)
 endmacro()
 
@@ -91,5 +96,8 @@ foreach(subdir ${SUBDIRS})
 endforeach()
 
 add_custom_target(run_tests COMMAND ${CMAKE_CTEST_COMMAND})
-
 add_dependencies(run_tests ${TEST_EXECUTABLES_DEPS_LIST})
+
+
+add_custom_target(run_lockfree_checkers)
+add_dependencies(run_lockfree_checkers ${IS_LOCK_FREE_LIST})
