@@ -9,7 +9,13 @@ enable_testing()
 
 include(utils.cmake)
 
-list(APPEND SUBDIR_TO_EXCLUDE .git build tests)
+set(HAZARD_POINTERS HAZARD_POINTERS)
+set(HAZARD_POINTERS_LIBS_LIST "")
+add_subdirectory(hazard_pointers)
+message(STATUS "Hazard pointers libs: ${HAZARD_POINTERS_LIBS_LIST}")
+
+
+list(APPEND SUBDIR_TO_EXCLUDE .git build tests hazard_pointers)
 
 
 set(TESTS_DIR ${CMAKE_CURRENT_LIST_DIR}/tests)
@@ -30,8 +36,17 @@ list(APPEND TEST_LIST ${TEST_NAME})
 set(IS_LOCK_FREE_LIST "")
 
 macro(HANDLE_IS_LOCK_FREE target_name)
-	add_custom_target(check_${target_name} COMMAND ${target_name} --verbose >> ${CMAKE_BINARY_DIR}/is_log_free.log)
+  add_custom_target(check_${target_name} COMMAND ${target_name} --verbose >> ${CMAKE_BINARY_DIR}/is_log_free.log)
   list(APPEND LOCAL_LOCKFREE_CHECKERS_LIST check_${target_name})
+endmacro()
+
+
+macro(CONFIGURATIONS_LIST result use_hp)
+  if(${use_hp})
+    set(${result} ${HAZARD_POINTERS_LIBS_LIST})
+  else()
+    set(${result} " ")
+  endif()
 endmacro()
 
 
@@ -56,26 +71,55 @@ macro(CREATE_TESTS_TO_SUBDIRS subdir_with_tests)
       add_subdirectory(${subdir})
     endif()
 
+    set(USE_HP 0)
     if(LIBS_TO_LINK)
-      message(STATUS "Target ${subdir} will be linked with: ${LIBS_TO_LINK}")
+      list(FIND LIBS_TO_LINK ${HAZARD_POINTERS} HP_INDEX)
+
+      if(NOT HP_INDEX EQUAL -1)
+        set(USE_HP 1)
+        list(REMOVE_AT LIBS_TO_LINK ${HP_INDEX})
+      endif()
     endif()
 
-    foreach(T ${TEST_LIST})
-      set(NAME ${subdir}_${T})
+    CONFIGURATIONS_LIST(conf_list ${USE_HP})
+    list(GET conf_list 0 first_element)
+    if (${first_element} STREQUAL " ")
+      message(STATUS "Only one configuration enabled")
+    else()
+      message(STATUS "Conf list: ${conf_list}")
+    endif()
+    foreach(CONF_LIBS ${conf_list})
+      foreach(T ${TEST_LIST})
 
-      add_executable(${NAME} ${${T}})
-      target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
-      target_include_directories(${NAME} PRIVATE ${subdir})
+        if(${CONF_LIBS} STREQUAL " ")
+          set(NAME ${subdir}_${T})
+        else()
+          message(STATUS "Conf libs are: ${CONF_LIBS}")
+          prefix_from_list(pre ${CONF_LIBS})
+          set(NAME ${subdir}${pre}${T})
+        endif()
 
-      if(NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
-        add_test(NAME test_${NAME} COMMAND ./${NAME})
-	list(APPEND LOCAL_TEST_EXECUTABLES_DEPS_LIST ${NAME})
-      endif()
+        message(STATUS "Name is: ${NAME}")
 
-      if(DEFINED ${T}_handler)
-        invoke(${T}_handler ${NAME})
-      endif()
+        add_executable(${NAME} ${${T}})
+	target_link_libraries(${NAME} PRIVATE ${${T}_link} ${LIBS_TO_LINK})
+        if (NOT ${CONF_LIBS} STREQUAL " ")
+          message(STATUS "Link ${CONF_LIBS} to ${NAME}")
+          target_link_libraries(${NAME} PRIVATE ${CONF_LIBS})
+        endif()
+        target_include_directories(${NAME} PRIVATE ${subdir})
+
+        if(NOT DEFINED ${T}_skip_test AND NOT ${SKIP_TESTS})
+          add_test(NAME test_${NAME} COMMAND ./${NAME})
+          list(APPEND LOCAL_TEST_EXECUTABLES_DEPS_LIST ${NAME})
+        endif()
+
+        if(DEFINED ${T}_handler)
+          invoke(${T}_handler ${NAME})
+        endif()
+      endforeach()
     endforeach()
+
   endforeach()
 
 

@@ -18,3 +18,12 @@ macro(invoke func_name params)
 
   file(REMOVE ${temp_file_name})
 endmacro()
+
+macro(prefix_from_list result l)
+  set(prefix "_")
+  foreach(dep ${l})
+    set(prefix "${prefix}${dep}_")
+  endforeach()
+
+  set(${result} ${prefix})
+endmacro()

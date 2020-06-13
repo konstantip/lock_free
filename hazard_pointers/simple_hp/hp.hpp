@@ -73,6 +73,12 @@ void addToReclaimList(const T* const data) noexcept
   static_assert(std::is_nothrow_destructible_v<T>, "destructor of T must not throw");
   for (;;)
   {
+    if (!otherHazardPoints(data))
+    {
+      delete data;
+      break;
+    }
+
     try
     {
       detail::reclaim_list.add(data);
@@ -80,11 +86,6 @@ void addToReclaimList(const T* const data) noexcept
     }
     catch (const std::bad_alloc&)
     {
-      if (!otherHazardPoints(data))
-      {
-        delete data;
-        break;
-      }
     }
   }
 }
